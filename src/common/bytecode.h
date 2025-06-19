@@ -7,6 +7,9 @@ typedef enum {
   OP_CONSTANT,
   OP_POP,
 
+  OP_DEFINE_GLOBAL,
+  OP_GET_GLOBAL,
+
   OP_ADD,
   OP_SUBTRACT,
   OP_MULTIPLY,
@@ -16,12 +19,14 @@ typedef enum {
   OP_RETURN,
 } OpCode;
 
+typedef int Value;
+
 typedef struct {
   int count;
   int capacity;
   uint8_t* code;
 
-  int* constants;
+  Value* constants;
   int constants_count;
   int constants_capacity;
 } Chunk;
@@ -29,6 +34,6 @@ typedef struct {
 void InitChunk(Chunk* chunk);
 void WriteChunk(Chunk* chunk, uint8_t byte);
 void FreeChunk(Chunk* chunk);
-int AddConstant(Chunk* chucnk, int value);
+int AddConstant(Chunk* chucnk, Value value);
 
 #endif

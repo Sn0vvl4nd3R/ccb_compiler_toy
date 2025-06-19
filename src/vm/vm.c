@@ -1,31 +1,33 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "vm.h"
 #include "../parser/parser.h"
 #include "../codegen/codegen.h"
 
 VM vm;
 
-void Push(int value) {
+void Push(Value value) {
   *vm.stack_top = value;
   vm.stack_top++;
 }
 
-int Pop() {
+Value Pop() {
   vm.stack_top--;
   return *vm.stack_top;
 }
 
-void InitVM(VM* vm) {
-  vm->stack_top = vm->stack;
+void InitVM() {
+  vm.stack_top = vm.stack;
+  memset(vm.globals, 0, sizeof(vm.globals));
 }
 
-void FreeVM(VM* vm) {}
+void FreeVM() {}
 
 static InterpretResult Run() {
   for (;;) {
-    printf("   ");
-    for (int* slot = vm.stack; slot < vm.stack_top; slot++) {
+    printf("    ");
+    for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
       printf("[ %d ]", *slot);
     }
     printf("\n");
@@ -34,46 +36,59 @@ static InterpretResult Run() {
     switch (instruction) {
       case OP_CONSTANT: {
         uint8_t const_index = *vm.ip++;
-        int constant = vm.chunk->constants[const_index];
+        Value constant = vm.chunk->constants[const_index];
         Push(constant);
-        break;
-      }
-      case OP_ADD: {
-        int b = Pop();
-        int a = Pop();
-        Push(a + b);
-        break;
-      }
-      case OP_SUBTRACT: {
-        int b = Pop();
-        int a = Pop();
-        Push(a - b);
-        break;
-      }
-      case OP_MULTIPLY: {
-        int b = Pop();
-        int a = Pop();
-        Push(a * b);
-        break;
-      }
-      case OP_DIVIDE: {
-        int b = Pop();
-        int a = Pop();
-        Push(a / b);
         break;
       }
       case OP_POP: {
         Pop();
         break;
       }
+      case OP_DEFINE_GLOBAL: {
+        uint8_t global_index = *vm.ip++;
+        vm.globals[global_index] = Pop();
+        break;
+      }
+      case OP_GET_GLOBAL: {
+        uint8_t global_index = *vm.ip++;
+        Push(vm.globals[global_index]);
+        break;
+      }
+      case OP_ADD: {
+        Value b = Pop();
+        Value a = Pop();
+        Push(a + b);
+        break;
+      }
+      case OP_SUBTRACT: {
+        Value b = Pop();
+        Value a = Pop();
+        Push(a - b);
+        break;
+      }
+      case OP_MULTIPLY: {
+        Value b = Pop();
+        Value a = Pop();
+        Push(a * b);
+        break;
+      }
+      case OP_DIVIDE: {
+        Value b = Pop();
+        Value a = Pop();
+        Push(a / b);
+        break;
+      }
       
       case OP_OUT: {
-        printf("Output: %d\n", Pop());
+        printf("%d\n", Pop());
         break;
       }
       case OP_RETURN: {
         return INTERPRET_OK;
       }
+      default:
+        printf("Unknown opcode %d\n", instruction);
+        return INTERPRET_RUNTIME_ERROR;
     }
   }
 }
@@ -84,18 +99,25 @@ InterpretResult Interpret(const char* source) {
   Program* program = ParseProgram(p);
 
   if (program == NULL) {
+    free(l);
+    free(p);
     return INTERPRET_COMPILE_ERROR;
   }
 
   Chunk* chunk = Compile(program);
+  if (chunk == NULL) {
+    return INTERPRET_COMPILE_ERROR;
+  }
 
-  InitVM(&vm);
+  InitVM();
   vm.chunk = chunk;
-  vm.ip = vm.chunk->code;
+  vm.ip = chunk->code;
 
   InterpretResult result = Run();
 
-  FreeChunk(vm.chunk);
+  FreeChunk(chunk);
   free(chunk);
+  free(l);
+  free(p);
   return result;
 }

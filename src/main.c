@@ -115,9 +115,9 @@ void PrintAst(Program* p) {
 }
 
 int main(void) {
-  const char* input = "out 10 + 2 * 5;";
+  const char* input = "let a = 15; let b = 69; out a * b;";
 
-  printf("Code: out 10 + 2 * 5;");
+  printf("let a = 15; let b = 69; out a * b;");
   Interpret(input);
 
   return 0;

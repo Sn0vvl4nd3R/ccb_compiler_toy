@@ -5,6 +5,8 @@
 
 typedef struct {
   Chunk* chunk;
+  char* strings[256];
+  int string_count;
 } Compiler;
 
 void CompileNode(Compiler* compiler, Node* node);
@@ -36,18 +38,34 @@ void FreeChunk(Chunk* chunk) {
   InitChunk(chunk);
 }
 
-int AddConstant(Chunk* chunk, int value) {
+int AddConstant(Chunk* chunk, Value value) {
   if (chunk->constants_capacity < chunk->constants_count + 1) {
     int old_capacity = chunk->constants_capacity;
     chunk->constants_capacity = old_capacity < 8 ? 8 : old_capacity * 2;
-    chunk->constants = realloc(chunk->constants, chunk->constants_capacity * sizeof(int));
+    chunk->constants = realloc(chunk->constants, chunk->constants_capacity * sizeof(Value));
   }
   chunk->constants[chunk->constants_count] = value;
   return chunk->constants_count++;
 }
 
+uint8_t IdentifierConstant(Compiler* compiler, const char* name) {
+  for (int i = 0; i < compiler->string_count; i++) {
+    if (strcmp(compiler->strings[i], name) == 0) {
+      return (uint8_t)i;
+    }
+  }
+  if (compiler->string_count == 256) {
+    printf("Too many string constants.\n");
+    exit(1);
+  }
+  compiler->strings[compiler->string_count] = (char*)name;
+  return (uint8_t)compiler->string_count++;
+}
+
 Chunk* Compile(Program* program) {
   Compiler compiler;
+  compiler.string_count = 0;
+  
   Chunk* chunk = (Chunk*)malloc(sizeof(Chunk));
   InitChunk(chunk);
   compiler.chunk = chunk;
@@ -56,7 +74,6 @@ Chunk* Compile(Program* program) {
     CompileNode(&compiler, (Node*)program->statements[i]);
   }
 
-  WriteChunk(compiler.chunk, OP_POP);
   WriteChunk(compiler.chunk, OP_RETURN);
   return compiler.chunk;
 }
@@ -104,6 +121,14 @@ void CompileExpression(Compiler* compiler, Expression* expr) {
       }
       break;
     }
+    case NODE_IDENTIFIER: {
+      Identifier* ident = (Identifier*)expr;
+      uint8_t arg = IdentifierConstant(compiler, ident->value);
+      WriteChunk(compiler->chunk, OP_GET_GLOBAL);
+      WriteChunk(compiler->chunk, arg);
+      break;
+    }
+    default: break;
   }
 }
 
@@ -125,5 +150,14 @@ void CompileStatement(Compiler* compiler, Statement* stmt) {
       WriteChunk(compiler->chunk, OP_OUT);
       break;
     }
+    case NODE_LET_STATEMENT: {
+      LetStatement* let_stmt = (LetStatement*)stmt;
+      CompileExpression(compiler, let_stmt->value);
+      uint8_t arg = IdentifierConstant(compiler, let_stmt->name->value);
+      WriteChunk(compiler->chunk, OP_DEFINE_GLOBAL);
+      WriteChunk(compiler->chunk, arg);
+      break;
+    }
+    default: break;
   }
 }
