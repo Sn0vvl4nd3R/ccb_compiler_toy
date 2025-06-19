@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "vm/vm.h"
 #include "common/token.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
@@ -114,18 +115,10 @@ void PrintAst(Program* p) {
 }
 
 int main(void) {
-  const char* input = "let answer = 10 + 2 * 15; while (i) { let x = i + 1; if (x) { out x; }}";
+  const char* input = "out 10 + 2 * 5;";
 
-  Lexer* l = NewLexer(input);
-  Parser* p = NewParser(l);
-  Program* program = ParseProgram(p);
-
-  if (program) {
-    PrintAst(program);
-  }
-
-  free(l);
-  free(p);
+  printf("Code: out 10 + 2 * 5;");
+  Interpret(input);
 
   return 0;
 }
