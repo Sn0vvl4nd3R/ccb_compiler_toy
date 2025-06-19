@@ -10,6 +10,10 @@ typedef enum {
   NODE_IDENTIFIER,
   NODE_INTEGER_LITERAL,
   NODE_INFIX_EXPRESSION,
+  NODE_IF_EXPRESSION,
+  NODE_BLOCK_STATEMENT,
+  NODE_WHILE_STATEMENT,
+  NODE_OUT_STATEMENT,
 } NodeType;
 
 
@@ -66,6 +70,37 @@ typedef struct {
   Statement** statements;
   int statement_count;
 } Program;
+
+
+typedef struct {
+  Statement base;
+  Token token;
+  Statement** statements;
+  int statement_count;
+} BlockStatement;
+
+typedef struct {
+  Statement base;
+  Token token;
+  Expression* condition;
+  BlockStatement* consequence;
+  BlockStatement* alternative;
+} IfExpression;
+
+
+typedef struct {
+  Statement base;
+  Token token;
+  Expression* condition;
+  BlockStatement* body;
+} WhileStatement;
+
+
+typedef struct {
+  Statement base;
+  Token token;
+  Expression* value;
+} OutStatement;
 
 void PrintAst(Program* p);
 

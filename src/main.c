@@ -4,7 +4,8 @@
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 
-void PrintNode(Node* node, int ident);
+void PrintExpression(Expression* exp, int indent);
+void PrintStatement(Statement* stmt, int indent);
 
 void PrintWithIndent(const char* text, int indent) {
   for (int i = 0; i < indent; i++) {
@@ -18,27 +19,37 @@ void PrintExpression(Expression* exp, int indent) {
     return;
   }
 
+  char buf[100];
+
   switch (exp->node.type) {
     case NODE_IDENTIFIER: {
       Identifier* ident = (Identifier*)exp;
-      char buf[100];
       sprintf(buf, "Identifier(%s)", ident->value);
+      PrintWithIndent(buf, indent);
       break;
     }
     case NODE_INTEGER_LITERAL: {
       IntegerLiteral* lit = (IntegerLiteral*)exp;
-      char buf[100];
       sprintf(buf, "Integer(%d)", lit->value);
       PrintWithIndent(buf, indent);
       break;
     }
     case NODE_INFIX_EXPRESSION: {
       InfixExpression* infix = (InfixExpression*)exp;
-      char buf[100];
       sprintf(buf, "Infix(%s)", infix->operator);
       PrintWithIndent(buf, indent);
       PrintExpression(infix->left, indent + 1);
       PrintExpression(infix->right, indent + 1);
+      break;
+    }
+    case NODE_IF_EXPRESSION: {
+      IfExpression* if_exp = (IfExpression*)exp;
+      PrintWithIndent("If", indent);
+      PrintExpression(if_exp->condition, indent + 1);
+      PrintStatement((Statement*)if_exp->consequence, indent + 1);
+      if (if_exp->alternative) {
+        PrintStatement((Statement*)if_exp->alternative, indent + 1);
+      }
       break;
     }
     default:
@@ -50,14 +61,41 @@ void PrintStatement(Statement* stmt, int indent) {
   if (!stmt) {
     return;
   }
+  
+  char buf[100];
 
   switch (stmt->node.type) {
     case NODE_LET_STATEMENT: {
       LetStatement* let_stmt = (LetStatement*)stmt;
-      char buf[100];
       sprintf(buf, "Let: %s =", let_stmt->name->value);
       PrintWithIndent(buf, indent);
       PrintExpression(let_stmt->value, indent + 1);
+      break;
+    }
+    case NODE_EXPRESSION_STATEMENT: {
+      ExpressionStatement* expr_stmt = (ExpressionStatement*)stmt;
+      PrintExpression(expr_stmt->expression, indent);
+      break;
+    }
+    case NODE_OUT_STATEMENT: {
+        OutStatement* out_stmt = (OutStatement*)stmt;
+        PrintWithIndent("Out", indent);
+        PrintExpression(out_stmt->value, indent + 1);
+        break;
+    }
+    case NODE_WHILE_STATEMENT: {
+      WhileStatement* while_stmt = (WhileStatement*)stmt;
+      PrintWithIndent("While", indent);
+      PrintExpression(while_stmt->condition, indent + 1);
+      PrintStatement((Statement*)while_stmt->body, indent + 1);
+      break;
+    }
+    case NODE_BLOCK_STATEMENT: {
+      BlockStatement* block_stmt = (BlockStatement*)stmt;
+      PrintWithIndent("Block", indent);
+      for (int i = 0; i < block_stmt->statement_count; i++) {
+        PrintStatement(block_stmt->statements[i], indent + 1);
+      }
       break;
     }
     default:
@@ -75,12 +113,8 @@ void PrintAst(Program* p) {
   }
 }
 
-void PrintToken(Token tok) {
-  printf("Type: %d, Literal: \"%s\"\n", tok.type, tok.literal);
-}
-
 int main(void) {
-  const char* input = "let answer = 10 + 2 * 15;";
+  const char* input = "let answer = 10 + 2 * 15; while (i) { let x = i + 1; if (x) { out x; }}";
 
   Lexer* l = NewLexer(input);
   Parser* p = NewParser(l);

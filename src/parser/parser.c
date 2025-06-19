@@ -20,9 +20,16 @@ Precedence precedences[] = {
   [TOKEN_ASTERISK] = PREC_PRODUCT,
 };
 
+Statement* ParseStatement(Parser* p);
 Expression* ParseExpression(Parser* p, Precedence precedence);
-Expression* ParseIntegerLiteral(Parser* p);
+BlockStatement* ParseBlockStatement(Parser* p);
+Statement* ParseLetStatement(Parser* p);
+Statement* ParseWhileStatement(Parser* p);
+Statement* ParseOutStatement(Parser* p);
+Statement* ParseExpressionStatement(Parser* p);
 Expression* ParseIdentifier(Parser* p);
+Expression* ParseIntegerLiteral(Parser* p);
+Expression* ParseIfExpression(Parser* p);
 Expression* ParseInfixExpression(Parser* p, Expression* left);
 
 static Precedence GetPrecedence(TokenType type) {
@@ -37,7 +44,7 @@ static void ParserNextToken(Parser* p) {
   p->peek_token = NextToken(p->l);
 }
 
-int ExpectPeek(Parser* p, TokenType t) {
+static int ExpectPeek(Parser* p, TokenType t) {
   if (p->peek_token.type == t) {
     ParserNextToken(p);
     return 1;
@@ -47,14 +54,69 @@ int ExpectPeek(Parser* p, TokenType t) {
   }
 }
 
+
 Parser* NewParser(Lexer* l) {
   Parser* p = (Parser*)malloc(sizeof(Parser));
   p->l = l;
-
   ParserNextToken(p);
   ParserNextToken(p);
-
   return p;
+}
+
+Program* ParseProgram(Parser* p) {
+  Program* program = (Program*)malloc(sizeof(Program));
+  program->statements = NULL;
+  program->statement_count = 0;
+
+  while (p->current_token.type != TOKEN_EOF) {
+    Statement* stmt = ParseStatement(p);
+    if (stmt != NULL) {
+      program->statement_count++;
+      program->statements = (Statement**)realloc(program->statements, program->statement_count * sizeof(Statement*));
+      program->statements[program->statement_count - 1] = stmt;
+    }
+    ParserNextToken(p);
+  }
+  return program;
+}
+
+Statement* ParseStatement(Parser* p) {
+  switch (p->current_token.type) {
+    case TOKEN_LET:
+      return ParseLetStatement(p);
+    case TOKEN_WHILE:
+      return ParseWhileStatement(p);
+    case TOKEN_OUT:
+      return ParseOutStatement(p);
+    default:
+      return ParseExpressionStatement(p);
+  }
+}
+
+BlockStatement* ParseBlockStatement(Parser* p) {
+  BlockStatement* block = (BlockStatement*)malloc(sizeof(BlockStatement));
+  block->base.node.type = NODE_BLOCK_STATEMENT;
+  block->token = p->current_token;
+  block->statements = NULL;
+  block->statement_count = 0;
+
+  ParserNextToken(p);
+
+  while (p->current_token.type != TOKEN_RBRACE && p->current_token.type != TOKEN_EOF) {
+    Statement* stmt = ParseStatement(p);
+    if (stmt != NULL) {
+      block->statement_count++;
+      block->statements = (Statement**)realloc(block->statements, block->statement_count * sizeof(Statement*));
+      block->statements[block->statement_count - 1] = stmt;
+    }
+    ParserNextToken(p);
+  }
+
+  if (p->current_token.type != TOKEN_RBRACE) {
+    printf("ERROR: expected '}'\n");
+  }
+
+  return block;
 }
 
 Statement* ParseLetStatement(Parser* p) {
@@ -80,7 +142,6 @@ Statement* ParseLetStatement(Parser* p) {
   }
 
   ParserNextToken(p);
-
   stmt->value = ParseExpression(p, PREC_LOWEST);
 
   if (p->peek_token.type == TOKEN_SEMICOLON) {
@@ -90,13 +151,34 @@ Statement* ParseLetStatement(Parser* p) {
   return (Statement*)stmt;
 }
 
-Statement* ParseStatement(Parser* p) {
-  switch (p->current_token.type) {
-    case TOKEN_LET:
-      return ParseLetStatement(p);
-    default:
-      return NULL;
+Statement* ParseOutStatement(Parser* p) {
+  OutStatement* stmt = (OutStatement*)malloc(sizeof(OutStatement));
+  stmt->base.node.type = NODE_OUT_STATEMENT;
+  stmt->token = p->current_token;
+
+  ParserNextToken(p);
+  stmt->value = ParseExpression(p, PREC_LOWEST);
+
+  if (p->peek_token.type == TOKEN_SEMICOLON) {
+    ParserNextToken(p);
   }
+
+  return (Statement*)stmt;
+}
+
+
+Statement* ParseExpressionStatement(Parser* p) {
+  ExpressionStatement* stmt = (ExpressionStatement*)malloc(sizeof(ExpressionStatement));
+  stmt->base.node.type = NODE_EXPRESSION_STATEMENT;
+  stmt->token = p->current_token;
+
+  stmt->expression = ParseExpression(p, PREC_LOWEST);
+
+  if (p->peek_token.type == TOKEN_SEMICOLON) {
+    ParserNextToken(p);
+  }
+
+  return (Statement*)stmt;
 }
 
 Expression* ParseExpression(Parser* p, Precedence precedence) {
@@ -105,6 +187,8 @@ Expression* ParseExpression(Parser* p, Precedence precedence) {
     prefix_fn = ParseIdentifier;
   } else if (p->current_token.type == TOKEN_INT) {
     prefix_fn = ParseIntegerLiteral;
+  } else if (p->current_token.type == TOKEN_IF) {
+    prefix_fn = ParseIfExpression;
   }
 
   if (prefix_fn == NULL) {
@@ -114,7 +198,7 @@ Expression* ParseExpression(Parser* p, Precedence precedence) {
 
   Expression* left_exp = prefix_fn(p);
 
-  while (p->peek_token.type != TOKEN_SEMICOLON && precedence < GetPrecedence(p->peek_token.type)) {
+  while (precedence < GetPrecedence(p->peek_token.type)) {
     Expression* (*infix_fn)(Parser*, Expression*) = NULL;
     switch (p->peek_token.type) {
       case TOKEN_PLUS:
@@ -137,7 +221,6 @@ Expression* ParseIntegerLiteral(Parser* p) {
   lit->base.node.type = NODE_INTEGER_LITERAL;
   lit->token = p->current_token;
   lit->value = atoi(p->current_token.literal);
-
   return (Expression*)lit;
 }
 
@@ -146,7 +229,6 @@ Expression* ParseIdentifier(Parser* p) {
   ident->base.node.type = NODE_IDENTIFIER;
   ident->token = p->current_token;
   ident->value = p->current_token.literal;
-
   return (Expression*)ident;
 }
 
@@ -159,25 +241,62 @@ Expression* ParseInfixExpression(Parser* p, Expression* left) {
 
   Precedence precedence = GetPrecedence(p->current_token.type);
   ParserNextToken(p);
-
   exp->right = ParseExpression(p, precedence);
-
   return (Expression*)exp;
 }
 
-Program* ParseProgram(Parser* p) {
-  Program* program = (Program*)malloc(sizeof(Program));
-  program->statements = NULL;
-  program->statement_count = 0;
+Statement* ParseWhileStatement(Parser* p) {
+  WhileStatement* stmt = (WhileStatement*)malloc(sizeof(WhileStatement));
+  stmt->base.node.type = NODE_WHILE_STATEMENT;
+  stmt->token = p->current_token;
 
-  while (p->current_token.type != TOKEN_EOF) {
-    Statement* stmt = ParseStatement(p);
-    if (stmt != NULL) {
-      program->statement_count++;
-      program->statements = (Statement**)realloc(program->statements, program->statement_count * sizeof(Statement*));
-      program->statements[program->statement_count - 1] = stmt;
-    }
-    ParserNextToken(p);
+  if (!ExpectPeek(p, TOKEN_LPAREN)) {
+    return NULL;
   }
-  return program;
+
+  ParserNextToken(p);
+  stmt->condition = ParseExpression(p, PREC_LOWEST);
+
+  if (!ExpectPeek(p, TOKEN_RPAREN)) {
+    return NULL;
+  }
+  if (!ExpectPeek(p, TOKEN_LBRACE)) {
+    return NULL;
+  }
+
+  stmt->body = ParseBlockStatement(p);
+  return (Statement*)stmt;
+}
+
+Expression* ParseIfExpression(Parser* p) {
+  IfExpression* exp = (IfExpression*)malloc(sizeof(IfExpression));
+  exp->base.node.type = NODE_IF_EXPRESSION;
+  exp->token = p->current_token;
+
+  if (!ExpectPeek(p, TOKEN_LPAREN)) {
+    return NULL;
+  }
+
+  ParserNextToken(p);
+  exp->condition = ParseExpression(p, PREC_LOWEST);
+
+  if (!ExpectPeek(p, TOKEN_RPAREN)) {
+    return NULL;
+  }
+  if (!ExpectPeek(p, TOKEN_LBRACE)) {
+    return NULL;
+  }
+
+  exp->consequence = ParseBlockStatement(p);
+
+  if (p->peek_token.type == TOKEN_ELSE) {
+    ParserNextToken(p);
+    if (!ExpectPeek(p, TOKEN_LBRACE)) {
+      return NULL;
+    }
+    exp->alternative = ParseBlockStatement(p);
+  } else {
+    exp->alternative = NULL;
+  }
+  return (Expression*)exp;
 }
