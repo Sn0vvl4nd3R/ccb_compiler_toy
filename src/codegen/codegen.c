@@ -62,6 +62,28 @@ uint8_t IdentifierConstant(Compiler* compiler, const char* name) {
   return (uint8_t)compiler->string_count++;
 }
 
+int EmitJump(Compiler* compiler, uint8_t instruction) {
+  WriteChunk(compiler->chunk, instruction);
+  WriteChunk(compiler->chunk, 0xff);
+  WriteChunk(compiler->chunk, 0xff);
+  return compiler->chunk->count - 2;
+}
+
+int EmitLoop(Compiler* compiler, int loop_start) {
+  WriteChunk(compiler->chunk, OP_LOOP);
+  WriteChunk(compiler->chunk, (loop_start >> 8) & 0xff);
+  WriteChunk(compiler->chunk, loop_start & 0xff);
+}
+
+void PatchJump(Compiler* compiler, int offset) {
+  int jump = compiler->chunk->count - offset - 2;
+  if (jump > UINT16_MAX) {
+    printf("ERROR: Too much code to jump over.\n");
+  }
+  compiler->chunk->code[offset] = (jump >> 8) & 0xff;
+  compiler->chunk->code[offset + 1] = jump & 0xff;
+}
+
 Chunk* Compile(Program* program) {
   Compiler compiler;
   compiler.string_count = 0;
@@ -83,12 +105,23 @@ void CompileNode(Compiler* compiler, Node* node) {
     return;
   }
 
-  if (node->type >= NODE_IDENTIFIER && node->type <= NODE_IF_EXPRESSION) { 
-    CompileExpression(compiler, (Expression*)node);
-  } else if (node->type >= NODE_LET_STATEMENT && node->type <= NODE_OUT_STATEMENT) {
-    CompileStatement(compiler, (Statement*)node);
-  } else {
-    printf("CODEGEN ERROR: Unknown node type %d\n", node->type);
+  switch (node->type) {
+    case NODE_IDENTIFIER:
+    case NODE_INTEGER_LITERAL:
+    case NODE_INFIX_EXPRESSION:
+    case NODE_IF_EXPRESSION:
+      CompileExpression(compiler, (Expression*)node);
+      break;
+    case NODE_LET_STATEMENT:
+    case NODE_EXPRESSION_STATEMENT:
+    case NODE_OUT_STATEMENT:
+    case NODE_BLOCK_STATEMENT:
+    case NODE_WHILE_STATEMENT:
+      CompileStatement(compiler, (Statement*)node);
+      break;
+    default:
+      printf("CODEGEN ERROR: Unknown node type %d\n", node->type);
+      break;
   }
 }
 
@@ -107,17 +140,29 @@ void CompileExpression(Compiler* compiler, Expression* expr) {
     }
     case NODE_INFIX_EXPRESSION: {
       InfixExpression* infix = (InfixExpression*)expr;
-      CompileExpression(compiler, infix->left);
-      CompileExpression(compiler, infix->right);
 
-      if (strcmp(infix->operator, "+") == 0) {
-        WriteChunk(compiler->chunk, OP_ADD);
-      } else if (strcmp(infix->operator, "-") == 0) {
-        WriteChunk(compiler->chunk, OP_SUBTRACT);
-      } else if (strcmp(infix->operator, "*") == 0) {
-        WriteChunk(compiler->chunk, OP_MULTIPLY);
-      } else if (strcmp(infix->operator, "/") == 0) {
-        WriteChunk(compiler->chunk, OP_DIVIDE);
+      if (strcmp(infix->operator, "=") == 0) {
+        CompileExpression(compiler, infix->right);
+        Identifier* ident = (Identifier*)infix->left;
+        uint8_t arg = IdentifierConstant(compiler, ident->value);
+        WriteChunk(compiler->chunk, OP_SET_GLOBAL);
+        WriteChunk(compiler->chunk, arg);
+      } else {
+        CompileExpression(compiler, infix->left);
+        CompileExpression(compiler, infix->right);
+        if (strcmp(infix->operator, "+") == 0) {
+          WriteChunk(compiler->chunk, OP_ADD);
+        } else if (strcmp(infix->operator, "-") == 0) {
+          WriteChunk(compiler->chunk, OP_SUBTRACT);
+        } else if (strcmp(infix->operator, "*") == 0) {
+          WriteChunk(compiler->chunk, OP_MULTIPLY);
+        } else if (strcmp(infix->operator, "/") == 0) {
+          WriteChunk(compiler->chunk, OP_DIVIDE);
+        } else if (strcmp(infix->operator, "<") == 0) {
+          WriteChunk(compiler->chunk, OP_LESS);
+        } else if (strcmp(infix->operator, ">") == 0) {
+          WriteChunk(compiler->chunk, OP_GREATER);
+        }
       }
       break;
     }
@@ -126,6 +171,21 @@ void CompileExpression(Compiler* compiler, Expression* expr) {
       uint8_t arg = IdentifierConstant(compiler, ident->value);
       WriteChunk(compiler->chunk, OP_GET_GLOBAL);
       WriteChunk(compiler->chunk, arg);
+      break;
+    }
+    case NODE_IF_EXPRESSION: {
+      IfExpression* if_exp = (IfExpression*)expr;
+      CompileExpression(compiler, if_exp->condition);
+      int then_jump = EmitJump(compiler, OP_JUMP_IF_FALSE);
+      WriteChunk(compiler->chunk, OP_POP);
+      CompileStatement(compiler, (Statement*)if_exp->consequence);
+      int else_jump = EmitJump(compiler, OP_JUMP);
+      PatchJump(compiler, then_jump);
+      WriteChunk(compiler->chunk, OP_POP);
+      if (if_exp->alternative != NULL) {
+        CompileStatement(compiler, (Statement*)if_exp->alternative);
+      }
+      PatchJump(compiler, else_jump);
       break;
     }
     default: break;
@@ -156,6 +216,23 @@ void CompileStatement(Compiler* compiler, Statement* stmt) {
       uint8_t arg = IdentifierConstant(compiler, let_stmt->name->value);
       WriteChunk(compiler->chunk, OP_DEFINE_GLOBAL);
       WriteChunk(compiler->chunk, arg);
+      break;
+    }
+    case NODE_BLOCK_STATEMENT: {
+      BlockStatement* block = (BlockStatement*)stmt;
+      for (int i = 0; i < block->statement_count; i++) {
+        CompileNode(compiler, (Node*)block->statements[i]);
+      }
+      break;
+    }
+    case NODE_WHILE_STATEMENT: {
+      WhileStatement* while_stmt = (WhileStatement*)stmt;
+      int loop_start = compiler->chunk->count;
+      CompileExpression(compiler, while_stmt->condition);
+      int exit_jump = EmitJump(compiler, OP_JUMP_IF_FALSE);
+      CompileStatement(compiler, (Statement*)while_stmt->body);
+      EmitLoop(compiler, loop_start);
+      PatchJump(compiler, exit_jump);
       break;
     }
     default: break;

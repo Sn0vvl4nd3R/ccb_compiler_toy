@@ -26,11 +26,11 @@ void FreeVM() {}
 
 static InterpretResult Run() {
   for (;;) {
-    printf("    ");
-    for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
-      printf("[ %d ]", *slot);
-    }
-    printf("\n");
+    //printf("    ");
+    //for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
+    //  printf("[ %d ]", *slot);
+    //}
+    //printf("\n");
 
     uint8_t instruction = *vm.ip++;
     switch (instruction) {
@@ -52,6 +52,11 @@ static InterpretResult Run() {
       case OP_GET_GLOBAL: {
         uint8_t global_index = *vm.ip++;
         Push(vm.globals[global_index]);
+        break;
+      }
+      case OP_SET_GLOBAL: {
+        uint8_t global_index = *vm.ip++;
+        vm.globals[global_index] = vm.stack_top[-1];
         break;
       }
       case OP_ADD: {
@@ -76,6 +81,37 @@ static InterpretResult Run() {
         Value b = Pop();
         Value a = Pop();
         Push(a / b);
+        break;
+      }
+      case OP_LESS: {
+        Value b = Pop();
+        Value a = Pop();
+        Push(a < b);
+        break;
+      }
+      case OP_GREATER: {
+        Value b = Pop();
+        Value a = Pop();
+        Push(a > b);
+        break;
+      }
+
+      case OP_JUMP: {
+        uint16_t offset = (uint16_t)(vm.ip[0] << 8 | vm.ip[1]);
+        vm.ip += offset;
+        break;
+      }
+      case OP_LOOP: {
+        uint16_t loop_start_address = (uint16_t)(vm.ip[0] << 8) | vm.ip[1];
+        vm.ip = &vm.chunk->code[loop_start_address];
+        break;
+      }
+      case OP_JUMP_IF_FALSE: {
+        uint16_t offset = (uint16_t)(vm.ip[0] << 8 | vm.ip[1]);
+        vm.ip += 2;
+        if (Pop() == 0) {
+          vm.ip += offset;
+        }
         break;
       }
       

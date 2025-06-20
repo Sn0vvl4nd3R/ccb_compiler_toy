@@ -112,6 +112,12 @@ Token NextToken(Lexer* l) {
     case '/':
       tok = NewToken(TOKEN_SLASH, "/");
       break;
+    case '<':
+      tok = NewToken(TOKEN_LESS, "<");
+      break;
+    case '>':
+      tok = NewToken(TOKEN_GREATER, ">");
+      break;
     case 0:
       tok = NewToken(TOKEN_EOF, "");
       break;

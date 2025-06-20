@@ -4,7 +4,7 @@
 
 typedef enum {
   PREC_LOWEST,
-  PREC_EQUALS,
+  PREC_ASSIGNMENT,
   PREC_LESSGREATER,
   PREC_SUM,
   PREC_PRODUCT,
@@ -13,7 +13,9 @@ typedef enum {
 } Precedence;
 
 Precedence precedences[] = {
-  [TOKEN_ASSIGN] = PREC_EQUALS,
+  [TOKEN_ASSIGN] = PREC_ASSIGNMENT,
+  [TOKEN_LESS] = PREC_LESSGREATER,
+  [TOKEN_GREATER] = PREC_LESSGREATER,
   [TOKEN_PLUS] = PREC_SUM,
   [TOKEN_MINUS] = PREC_SUM,
   [TOKEN_SLASH] = PREC_PRODUCT,
@@ -31,6 +33,7 @@ Expression* ParseIdentifier(Parser* p);
 Expression* ParseIntegerLiteral(Parser* p);
 Expression* ParseIfExpression(Parser* p);
 Expression* ParseInfixExpression(Parser* p, Expression* left);
+Expression* ParseAssignmentExpression(Parser* p, Expression* left);
 
 static Precedence GetPrecedence(TokenType type) {
   if (type >= (sizeof(precedences)/sizeof(precedences[0]))) {
@@ -166,6 +169,25 @@ Statement* ParseOutStatement(Parser* p) {
   return (Statement*)stmt;
 }
 
+Expression* ParseAssignmentExpression(Parser* p, Expression* left) {
+  if (left->node.type != NODE_IDENTIFIER) {
+    printf("ERROR: Invalid assignment target.\n");
+    return NULL;
+  }
+
+  InfixExpression* exp = (InfixExpression*)malloc(sizeof(InfixExpression));
+  exp->base.node.type = NODE_INFIX_EXPRESSION;
+  exp->token = p->current_token;
+  exp->operator = p->current_token.literal;
+  exp->left = left;
+
+  Precedence precedence = GetPrecedence(p->current_token.type);
+  ParserNextToken(p);
+  exp->right = ParseExpression(p, precedence);
+
+  return (Expression*)exp;
+}
+
 
 Statement* ParseExpressionStatement(Parser* p) {
   ExpressionStatement* stmt = (ExpressionStatement*)malloc(sizeof(ExpressionStatement));
@@ -206,6 +228,13 @@ Expression* ParseExpression(Parser* p, Precedence precedence) {
       case TOKEN_SLASH:
       case TOKEN_ASTERISK:
         infix_fn = ParseInfixExpression;
+        break;
+      case TOKEN_LESS:
+      case TOKEN_GREATER:
+        infix_fn = ParseInfixExpression;
+        break;
+      case TOKEN_ASSIGN:
+        infix_fn = ParseAssignmentExpression;
         break;
       default:
         return left_exp;
