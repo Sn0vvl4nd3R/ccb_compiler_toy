@@ -115,9 +115,8 @@ void PrintAst(Program* p) {
 }
 
 int main(void) {
-  const char* input = "let i = 0; while (i < 5) { out i; i = i + 1; }";
+  const char* input = "let x = 10; while (x > 5) { x = x - 1; out x }";
 
-  printf("Code: let i = 0; while (i < 5) { out i; i = i + 1; }\n");
   Interpret(input);
 
   return 0;

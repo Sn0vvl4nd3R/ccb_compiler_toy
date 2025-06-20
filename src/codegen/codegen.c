@@ -140,7 +140,6 @@ void CompileExpression(Compiler* compiler, Expression* expr) {
     }
     case NODE_INFIX_EXPRESSION: {
       InfixExpression* infix = (InfixExpression*)expr;
-
       if (strcmp(infix->operator, "=") == 0) {
         CompileExpression(compiler, infix->right);
         Identifier* ident = (Identifier*)infix->left;
@@ -177,18 +176,17 @@ void CompileExpression(Compiler* compiler, Expression* expr) {
       IfExpression* if_exp = (IfExpression*)expr;
       CompileExpression(compiler, if_exp->condition);
       int then_jump = EmitJump(compiler, OP_JUMP_IF_FALSE);
-      WriteChunk(compiler->chunk, OP_POP);
       CompileStatement(compiler, (Statement*)if_exp->consequence);
       int else_jump = EmitJump(compiler, OP_JUMP);
       PatchJump(compiler, then_jump);
-      WriteChunk(compiler->chunk, OP_POP);
       if (if_exp->alternative != NULL) {
         CompileStatement(compiler, (Statement*)if_exp->alternative);
       }
       PatchJump(compiler, else_jump);
       break;
     }
-    default: break;
+    default:
+      break;
   }
 }
 
@@ -201,7 +199,9 @@ void CompileStatement(Compiler* compiler, Statement* stmt) {
     case NODE_EXPRESSION_STATEMENT: {
       ExpressionStatement* expr_stmt = (ExpressionStatement*)stmt;
       CompileExpression(compiler, expr_stmt->expression);
-      WriteChunk(compiler->chunk, OP_POP);
+      if (expr_stmt->expression->node.type != NODE_IF_EXPRESSION) {
+        WriteChunk(compiler->chunk, OP_POP);
+      }
       break;
     }
     case NODE_OUT_STATEMENT: {
@@ -235,6 +235,7 @@ void CompileStatement(Compiler* compiler, Statement* stmt) {
       PatchJump(compiler, exit_jump);
       break;
     }
-    default: break;
+    default:
+      break;
   }
 }
