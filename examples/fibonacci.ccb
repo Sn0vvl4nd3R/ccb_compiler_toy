@@ -1,0 +1,17 @@
+let limit = 10;
+let count = 0;
+
+let a = 0;
+let b = 1;
+
+out 2001;
+
+while (count < limit) {
+  out a;
+  let next = a + b;
+  a = b;
+  b = next;
+  count = count + 1;
+}
+
+out 2002;

@@ -1,0 +1,16 @@
+/bin/
+/obj/
+
+compiler
+compiler.exe
+
+*.o
+*.obj
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+*.log
+core.*

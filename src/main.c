@@ -5,119 +5,59 @@
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 
-void PrintExpression(Expression* exp, int indent);
-void PrintStatement(Statement* stmt, int indent);
-
-void PrintWithIndent(const char* text, int indent) {
-  for (int i = 0; i < indent; i++) {
-    printf("  ");
+static char* ReadFile(const char* path) {
+  FILE* file = fopen(path, "rb");
+  if (file == NULL) {
+    fprintf(stderr, "Could not open file \"%s\".\n", path);
+    return NULL;
   }
-  printf("%s\n", text);
+
+  fseek(file, 0L, SEEK_END);
+  size_t file_size = ftell(file);
+  rewind(file);
+
+  char* buffer = (char*)malloc(file_size + 1);
+  if (buffer == NULL) {
+    fprintf(stderr, "Not enough memory to read \"%s\".\n", path);
+    fclose(file);
+    return NULL;
+  }
+
+  size_t bytes_read = fread(buffer, sizeof(char), file_size, file);
+  if (bytes_read < file_size) {
+    fprintf(stderr, "Could not read file \"%s\".\n", path);
+    free(buffer);
+    fclose(file);
+    return NULL;
+  }
+
+  buffer[bytes_read] = '\0';
+  fclose(file);
+  return buffer;
 }
 
-void PrintExpression(Expression* exp, int indent) {
-  if (!exp) {
-    return;
+int main(int argc, char* argv[]) {
+  if (argc != 2) {
+    fprintf(stderr, "Usage: %s [path]\n", argv[0]);
+    return 1;
   }
 
-  char buf[100];
-
-  switch (exp->node.type) {
-    case NODE_IDENTIFIER: {
-      Identifier* ident = (Identifier*)exp;
-      sprintf(buf, "Identifier(%s)", ident->value);
-      PrintWithIndent(buf, indent);
-      break;
-    }
-    case NODE_INTEGER_LITERAL: {
-      IntegerLiteral* lit = (IntegerLiteral*)exp;
-      sprintf(buf, "Integer(%d)", lit->value);
-      PrintWithIndent(buf, indent);
-      break;
-    }
-    case NODE_INFIX_EXPRESSION: {
-      InfixExpression* infix = (InfixExpression*)exp;
-      sprintf(buf, "Infix(%s)", infix->operator);
-      PrintWithIndent(buf, indent);
-      PrintExpression(infix->left, indent + 1);
-      PrintExpression(infix->right, indent + 1);
-      break;
-    }
-    case NODE_IF_EXPRESSION: {
-      IfExpression* if_exp = (IfExpression*)exp;
-      PrintWithIndent("If", indent);
-      PrintExpression(if_exp->condition, indent + 1);
-      PrintStatement((Statement*)if_exp->consequence, indent + 1);
-      if (if_exp->alternative) {
-        PrintStatement((Statement*)if_exp->alternative, indent + 1);
-      }
-      break;
-    }
-    default:
-      PrintWithIndent("Unknown Expression", indent);
+  char* source = ReadFile(argv[1]);
+  if (source == NULL) {
+    return 1;
   }
-}
 
-void PrintStatement(Statement* stmt, int indent) {
-  if (!stmt) {
-    return;
+  printf("--- Compiling and running %s ---\n", argv[1]);
+  InterpretResult result = Interpret(source);
+
+  free(source);
+
+  if (result == INTERPRET_COMPILE_ERROR) {
+    return 65;
   }
-  
-  char buf[100];
-
-  switch (stmt->node.type) {
-    case NODE_LET_STATEMENT: {
-      LetStatement* let_stmt = (LetStatement*)stmt;
-      sprintf(buf, "Let: %s =", let_stmt->name->value);
-      PrintWithIndent(buf, indent);
-      PrintExpression(let_stmt->value, indent + 1);
-      break;
-    }
-    case NODE_EXPRESSION_STATEMENT: {
-      ExpressionStatement* expr_stmt = (ExpressionStatement*)stmt;
-      PrintExpression(expr_stmt->expression, indent);
-      break;
-    }
-    case NODE_OUT_STATEMENT: {
-        OutStatement* out_stmt = (OutStatement*)stmt;
-        PrintWithIndent("Out", indent);
-        PrintExpression(out_stmt->value, indent + 1);
-        break;
-    }
-    case NODE_WHILE_STATEMENT: {
-      WhileStatement* while_stmt = (WhileStatement*)stmt;
-      PrintWithIndent("While", indent);
-      PrintExpression(while_stmt->condition, indent + 1);
-      PrintStatement((Statement*)while_stmt->body, indent + 1);
-      break;
-    }
-    case NODE_BLOCK_STATEMENT: {
-      BlockStatement* block_stmt = (BlockStatement*)stmt;
-      PrintWithIndent("Block", indent);
-      for (int i = 0; i < block_stmt->statement_count; i++) {
-        PrintStatement(block_stmt->statements[i], indent + 1);
-      }
-      break;
-    }
-    default:
-      PrintWithIndent("Unknown Statement", indent);
+  if (result == INTERPRET_RUNTIME_ERROR) {
+    return 70;
   }
-}
-
-void PrintAst(Program* p) {
-  if (!p) {
-    return;
-  }
-  PrintWithIndent("Program", 0);
-  for (int i = 0; i < p->statement_count; i++) {
-    PrintStatement(p->statements[i], 1);
-  }
-}
-
-int main(void) {
-  const char* input = "let x = 10; while (x > 5) { x = x - 1; out x }";
-
-  Interpret(input);
 
   return 0;
 }

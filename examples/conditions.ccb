@@ -1,0 +1,28 @@
+let score = 85;
+
+out 3001;
+
+if (score > 90) {
+  out 5;
+} else {
+  if (score > 70) {
+    out 4;
+  } else {
+    if (score > 50) {
+      out 3;
+    } else {
+      out 2;
+    }
+  }
+}
+
+out 3002;
+
+let a = 10;
+let b = 20;
+
+if (a < b) {
+  out 1;
+} else {
+  out 0;
+}
