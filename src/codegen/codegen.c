@@ -69,25 +69,29 @@ int EmitJump(Compiler* compiler, uint8_t instruction) {
   return compiler->chunk->count - 2;
 }
 
-int EmitLoop(Compiler* compiler, int loop_start) {
-  WriteChunk(compiler->chunk, OP_LOOP);
-  WriteChunk(compiler->chunk, (loop_start >> 8) & 0xff);
-  WriteChunk(compiler->chunk, loop_start & 0xff);
-}
-
-void PatchJump(Compiler* compiler, int offset) {
-  int jump = compiler->chunk->count - offset - 2;
+void PatchJump(Compiler* compiler, int offset_pos) {
+  int jump = compiler->chunk->count - offset_pos;
   if (jump > UINT16_MAX) {
     printf("ERROR: Too much code to jump over.\n");
   }
-  compiler->chunk->code[offset] = (jump >> 8) & 0xff;
-  compiler->chunk->code[offset + 1] = jump & 0xff;
+  compiler->chunk->code[offset_pos] = (jump >> 8) & 0xff;
+  compiler->chunk->code[offset_pos + 1] = jump & 0xff;
+}
+
+void EmitLoop(Compiler* compiler, int loop_start) {
+  WriteChunk(compiler->chunk, OP_LOOP);
+  int offset = compiler->chunk->count - loop_start + 2;
+  if (offset > UINT16_MAX) {
+    printf("ERROR: Loop body too large.\n");
+  }
+  WriteChunk(compiler->chunk, (offset >> 8) & 0xff);
+  WriteChunk(compiler->chunk, offset & 0xff);
 }
 
 Chunk* Compile(Program* program) {
   Compiler compiler;
   compiler.string_count = 0;
-  
+
   Chunk* chunk = (Chunk*)malloc(sizeof(Chunk));
   InitChunk(chunk);
   compiler.chunk = chunk;
@@ -115,11 +119,9 @@ void CompileNode(Compiler* compiler, Node* node) {
     case NODE_LET_STATEMENT:
     case NODE_EXPRESSION_STATEMENT:
     case NODE_OUT_STATEMENT:
-    case NODE_IN_STATEMENT:
-      CompileStatement(compiler, (Statement*)node);
-      break;
     case NODE_BLOCK_STATEMENT:
     case NODE_WHILE_STATEMENT:
+    case NODE_IN_STATEMENT:
       CompileStatement(compiler, (Statement*)node);
       break;
     default:
@@ -139,6 +141,13 @@ void CompileExpression(Compiler* compiler, Expression* expr) {
       int const_index = AddConstant(compiler->chunk, lit->value);
       WriteChunk(compiler->chunk, OP_CONSTANT);
       WriteChunk(compiler->chunk, (uint8_t)const_index);
+      break;
+    }
+    case NODE_IDENTIFIER: {
+      Identifier* ident = (Identifier*)expr;
+      uint8_t arg = IdentifierConstant(compiler, ident->value);
+      WriteChunk(compiler->chunk, OP_GET_GLOBAL);
+      WriteChunk(compiler->chunk, arg);
       break;
     }
     case NODE_INFIX_EXPRESSION: {
@@ -168,13 +177,6 @@ void CompileExpression(Compiler* compiler, Expression* expr) {
       }
       break;
     }
-    case NODE_IDENTIFIER: {
-      Identifier* ident = (Identifier*)expr;
-      uint8_t arg = IdentifierConstant(compiler, ident->value);
-      WriteChunk(compiler->chunk, OP_GET_GLOBAL);
-      WriteChunk(compiler->chunk, arg);
-      break;
-    }
     case NODE_IF_EXPRESSION: {
       IfExpression* if_exp = (IfExpression*)expr;
       CompileExpression(compiler, if_exp->condition);
@@ -199,12 +201,18 @@ void CompileStatement(Compiler* compiler, Statement* stmt) {
   }
 
   switch (stmt->node.type) {
+    case NODE_LET_STATEMENT: {
+      LetStatement* let_stmt = (LetStatement*)stmt;
+      CompileExpression(compiler, let_stmt->value);
+      uint8_t arg = IdentifierConstant(compiler, let_stmt->name->value);
+      WriteChunk(compiler->chunk, OP_DEFINE_GLOBAL);
+      WriteChunk(compiler->chunk, arg);
+      break;
+    }
     case NODE_EXPRESSION_STATEMENT: {
-      ExpressionStatement* expr_stmt = (ExpressionStatement*)stmt;
-      CompileExpression(compiler, expr_stmt->expression);
-      if (expr_stmt->expression->node.type != NODE_IF_EXPRESSION) {
-        WriteChunk(compiler->chunk, OP_POP);
-      }
+      ExpressionStatement* es = (ExpressionStatement*)stmt;
+      CompileExpression(compiler, es->expression);
+      WriteChunk(compiler->chunk, OP_POP);
       break;
     }
     case NODE_OUT_STATEMENT: {
@@ -217,14 +225,6 @@ void CompileStatement(Compiler* compiler, Statement* stmt) {
       InStatement* in_stmt = (InStatement*)stmt;
       uint8_t arg = IdentifierConstant(compiler, in_stmt->name->value);
       WriteChunk(compiler->chunk, OP_IN);
-      WriteChunk(compiler->chunk, arg);
-      break;
-    }
-    case NODE_LET_STATEMENT: {
-      LetStatement* let_stmt = (LetStatement*)stmt;
-      CompileExpression(compiler, let_stmt->value);
-      uint8_t arg = IdentifierConstant(compiler, let_stmt->name->value);
-      WriteChunk(compiler->chunk, OP_DEFINE_GLOBAL);
       WriteChunk(compiler->chunk, arg);
       break;
     }

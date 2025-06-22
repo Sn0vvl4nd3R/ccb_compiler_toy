@@ -26,39 +26,32 @@ void FreeVM() {}
 
 static InterpretResult Run() {
   for (;;) {
-    //printf("    ");
-    //for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
-    //  printf("[ %d ]", *slot);
-    //}
-    //printf("\n");
-
     uint8_t instruction = *vm.ip++;
     switch (instruction) {
       case OP_CONSTANT: {
-        uint8_t const_index = *vm.ip++;
-        Value constant = vm.chunk->constants[const_index];
-        Push(constant);
+        uint8_t i = *vm.ip++;
+        Push(vm.chunk->constants[i]);
         break;
       }
-      case OP_POP: {
+      case OP_POP:
         Pop();
         break;
-      }
       case OP_DEFINE_GLOBAL: {
-        uint8_t global_index = *vm.ip++;
-        vm.globals[global_index] = Pop();
+        uint8_t i = *vm.ip++;
+        vm.globals[i] = Pop();
         break;
       }
       case OP_GET_GLOBAL: {
-        uint8_t global_index = *vm.ip++;
-        Push(vm.globals[global_index]);
+        uint8_t i = *vm.ip++;
+        Push(vm.globals[i]);
         break;
       }
       case OP_SET_GLOBAL: {
-        uint8_t global_index = *vm.ip++;
-        vm.globals[global_index] = vm.stack_top[-1];
+        uint8_t i = *vm.ip++;
+        vm.globals[i] = vm.stack_top[-1];
         break;
       }
+
       case OP_ADD: {
         Value b = Pop();
         Value a = Pop();
@@ -95,36 +88,34 @@ static InterpretResult Run() {
         Push(a > b);
         break;
       }
-
+      
       case OP_JUMP: {
-        uint16_t offset = (uint16_t)(vm.ip[0] << 8 | vm.ip[1]);
+        uint16_t offset = (uint16_t)(vm.ip[0] << 8) | vm.ip[1];
         vm.ip += offset;
         break;
       }
-      case OP_LOOP: {
-        uint16_t loop_start_address = (uint16_t)(vm.ip[0] << 8) | vm.ip[1];
-        vm.ip = &vm.chunk->code[loop_start_address];
+      case OP_JUMP_IF_FALSE: {
+        uint16_t offset = (uint16_t)(vm.ip[0] << 8) | vm.ip[1];
+        if (vm.stack_top[-1] == 0) {
+          vm.ip += offset;
+        } else {
+          vm.ip += 2;
+        }
         break;
       }
-      case OP_JUMP_IF_FALSE: {
-        uint16_t offset = (uint16_t)(vm.ip[0] << 8 | vm.ip[1]);
-        vm.ip += 2;
-        if (Pop() == 0) {
-          vm.ip += offset;
-        }
+      case OP_LOOP: {
+        uint16_t offset = (uint16_t)(vm.ip[0] << 8) | vm.ip[1];
+        vm.ip -= offset;
         break;
       }
       
       case OP_IN: {
-        uint8_t global_index = *vm.ip++;
-        int input_value;
-        int items_read = scanf("%d", &input_value);
-        if (items_read != 1) {
-          printf("RUNTIME ERROR: Invalid input, expected an integer.\n");
-          input_value = 0;
+        uint8_t i = *vm.ip++; int val;
+        if (scanf("%d", &val) != 1) {
+          val = 0;
           while (getchar() != '\n');
         }
-        vm.globals[global_index] = input_value;
+        vm.globals[i] = val;
         break;
       }
       case OP_OUT: {
@@ -154,6 +145,8 @@ InterpretResult Interpret(const char* source) {
 
   Chunk* chunk = Compile(program);
   if (chunk == NULL) {
+    free(l);
+    free(p);
     return INTERPRET_COMPILE_ERROR;
   }
 
