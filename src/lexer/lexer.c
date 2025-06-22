@@ -72,6 +72,14 @@ TokenType LookUpIdent(const char* ident) {
   return TOKEN_IDENT;
 }
 
+char PeekChar(Lexer* l) {
+  if (l->read_position >= strlen(l->input)) {
+    return 0;
+  } else {
+    return l->input[l->read_position];
+  }
+}
+
 Token NewToken(TokenType type, char* literal) {
   Token tok;
   tok.type = type;
@@ -113,7 +121,14 @@ Token NextToken(Lexer* l) {
       tok = NewToken(TOKEN_ASTERISK, "*");
       break;
     case '/':
-      tok = NewToken(TOKEN_SLASH, "/");
+      if (PeekChar(l) == '/') {
+        while (l->ch != '\n' && l->ch != 0) {
+          ReadChar(l);
+        }
+        return NextToken(l);
+      } else {
+        tok = NewToken(TOKEN_SLASH, "/");
+      }
       break;
     case '<':
       tok = NewToken(TOKEN_LESS, "<");
