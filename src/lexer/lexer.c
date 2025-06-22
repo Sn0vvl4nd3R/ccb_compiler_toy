@@ -66,6 +66,9 @@ TokenType LookUpIdent(const char* ident) {
   if (strcmp(ident, "out") == 0) {
     return TOKEN_OUT;
   }
+  if (strcmp(ident, "in") == 0) {
+    return TOKEN_IN;
+  }
   return TOKEN_IDENT;
 }
 

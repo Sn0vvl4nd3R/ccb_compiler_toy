@@ -14,6 +14,7 @@ typedef enum {
   NODE_BLOCK_STATEMENT,
   NODE_WHILE_STATEMENT,
   NODE_OUT_STATEMENT,
+  NODE_IN_STATEMENT,
 } NodeType;
 
 
@@ -101,6 +102,12 @@ typedef struct {
   Token token;
   Expression* value;
 } OutStatement;
+
+typedef struct {
+  Statement base;
+  Token token;
+  Identifier* name;
+} InStatement;
 
 void PrintAst(Program* p);
 

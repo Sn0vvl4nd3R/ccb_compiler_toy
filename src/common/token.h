@@ -28,6 +28,7 @@ typedef enum {
   TOKEN_ELSE,
   TOKEN_WHILE,
   TOKEN_OUT,
+  TOKEN_IN,
 } TokenType;
 
 typedef struct {

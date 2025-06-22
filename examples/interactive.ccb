@@ -1,0 +1,12 @@
+let a = 0;
+let b = 0;
+
+out 101;
+in a;
+
+out 102;
+in b;
+
+let result = a + b;
+out 888;
+out result;

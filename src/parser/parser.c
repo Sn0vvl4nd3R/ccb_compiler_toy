@@ -28,6 +28,7 @@ BlockStatement* ParseBlockStatement(Parser* p);
 Statement* ParseLetStatement(Parser* p);
 Statement* ParseWhileStatement(Parser* p);
 Statement* ParseOutStatement(Parser* p);
+Statement* ParseInStatement(Parser* p);
 Statement* ParseExpressionStatement(Parser* p);
 Expression* ParseIdentifier(Parser* p);
 Expression* ParseIntegerLiteral(Parser* p);
@@ -91,6 +92,8 @@ Statement* ParseStatement(Parser* p) {
       return ParseWhileStatement(p);
     case TOKEN_OUT:
       return ParseOutStatement(p);
+    case TOKEN_IN:
+      return ParseInStatement(p);
     default:
       return ParseExpressionStatement(p);
   }
@@ -161,6 +164,29 @@ Statement* ParseOutStatement(Parser* p) {
 
   ParserNextToken(p);
   stmt->value = ParseExpression(p, PREC_LOWEST);
+
+  if (p->peek_token.type == TOKEN_SEMICOLON) {
+    ParserNextToken(p);
+  }
+
+  return (Statement*)stmt;
+}
+
+Statement* ParseInStatement(Parser* p) {
+  InStatement* stmt = (InStatement*)malloc(sizeof(InStatement));
+  stmt->base.node.type = NODE_IN_STATEMENT;
+  stmt->token = p->current_token;
+
+  if (!ExpectPeek(p, TOKEN_IDENT)) {
+    free(stmt);
+    return NULL;
+  }
+
+  Identifier* name = (Identifier*)malloc(sizeof(Identifier));
+  name->base.node.type = NODE_IDENTIFIER;
+  name->token = p->current_token;
+  name->value = p->current_token.literal;
+  stmt->name = name;
 
   if (p->peek_token.type == TOKEN_SEMICOLON) {
     ParserNextToken(p);

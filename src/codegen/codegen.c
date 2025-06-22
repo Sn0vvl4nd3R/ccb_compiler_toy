@@ -115,6 +115,9 @@ void CompileNode(Compiler* compiler, Node* node) {
     case NODE_LET_STATEMENT:
     case NODE_EXPRESSION_STATEMENT:
     case NODE_OUT_STATEMENT:
+    case NODE_IN_STATEMENT:
+      CompileStatement(compiler, (Statement*)node);
+      break;
     case NODE_BLOCK_STATEMENT:
     case NODE_WHILE_STATEMENT:
       CompileStatement(compiler, (Statement*)node);
@@ -208,6 +211,13 @@ void CompileStatement(Compiler* compiler, Statement* stmt) {
       OutStatement* out_stmt = (OutStatement*)stmt;
       CompileExpression(compiler, out_stmt->value);
       WriteChunk(compiler->chunk, OP_OUT);
+      break;
+    }
+    case NODE_IN_STATEMENT: {
+      InStatement* in_stmt = (InStatement*)stmt;
+      uint8_t arg = IdentifierConstant(compiler, in_stmt->name->value);
+      WriteChunk(compiler->chunk, OP_IN);
+      WriteChunk(compiler->chunk, arg);
       break;
     }
     case NODE_LET_STATEMENT: {

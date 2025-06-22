@@ -115,6 +115,18 @@ static InterpretResult Run() {
         break;
       }
       
+      case OP_IN: {
+        uint8_t global_index = *vm.ip++;
+        int input_value;
+        int items_read = scanf("%d", &input_value);
+        if (items_read != 1) {
+          printf("RUNTIME ERROR: Invalid input, expected an integer.\n");
+          input_value = 0;
+          while (getchar() != '\n');
+        }
+        vm.globals[global_index] = input_value;
+        break;
+      }
       case OP_OUT: {
         printf("%d\n", Pop());
         break;
