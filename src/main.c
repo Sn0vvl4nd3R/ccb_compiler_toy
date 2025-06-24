@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "vm/vm.h"
 #include "common/token.h"
 #include "lexer/lexer.h"
@@ -36,9 +37,22 @@ static char* ReadFile(const char* path) {
   return buffer;
 }
 
+static int HasCcbExtension(const char* path) {
+  const char* dot = strrchr(path, '.');
+  if (dot == NULL) {
+    return 0;
+  }
+  return strcasecmp(dot, ".ccb") == 0;
+}
+
 int main(int argc, char* argv[]) {
   if (argc != 2) {
     fprintf(stderr, "Usage: %s [path]\n", argv[0]);
+    return 1;
+  }
+
+  if (!HasCcbExtension(argv[1])) {
+    fprintf(stderr, "ERROR: \"%s\" has unsupported extension (expected .ccb).\n", argv[1]);
     return 1;
   }
 
