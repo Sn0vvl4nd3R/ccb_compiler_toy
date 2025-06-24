@@ -70,9 +70,10 @@ int EmitJump(Compiler* compiler, uint8_t instruction) {
 }
 
 void PatchJump(Compiler* compiler, int offset_pos) {
-  int jump = compiler->chunk->count - offset_pos;
+  int jump = compiler->chunk->count - offset_pos + 1;
   if (jump > UINT16_MAX) {
     printf("ERROR: Too much code to jump over.\n");
+    exit(1);
   }
   compiler->chunk->code[offset_pos] = (jump >> 8) & 0xff;
   compiler->chunk->code[offset_pos + 1] = jump & 0xff;
@@ -80,9 +81,10 @@ void PatchJump(Compiler* compiler, int offset_pos) {
 
 void EmitLoop(Compiler* compiler, int loop_start) {
   WriteChunk(compiler->chunk, OP_LOOP);
-  int offset = compiler->chunk->count - loop_start + 2;
+  int offset = compiler->chunk->count - loop_start;
   if (offset > UINT16_MAX) {
     printf("ERROR: Loop body too large.\n");
+    exit(1);
   }
   WriteChunk(compiler->chunk, (offset >> 8) & 0xff);
   WriteChunk(compiler->chunk, offset & 0xff);
