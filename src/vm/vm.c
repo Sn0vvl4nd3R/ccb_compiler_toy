@@ -101,6 +101,7 @@ static InterpretResult Run() {
         } else {
           vm.ip += 2;
         }
+        Pop();
         break;
       }
       case OP_LOOP: {

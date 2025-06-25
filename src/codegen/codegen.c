@@ -70,7 +70,7 @@ int EmitJump(Compiler* compiler, uint8_t instruction) {
 }
 
 void PatchJump(Compiler* compiler, int offset_pos) {
-  int jump = compiler->chunk->count - offset_pos + 1;
+  int jump = compiler->chunk->count - offset_pos;
   if (jump > UINT16_MAX) {
     printf("ERROR: Too much code to jump over.\n");
     exit(1);
@@ -214,7 +214,9 @@ void CompileStatement(Compiler* compiler, Statement* stmt) {
     case NODE_EXPRESSION_STATEMENT: {
       ExpressionStatement* es = (ExpressionStatement*)stmt;
       CompileExpression(compiler, es->expression);
-      WriteChunk(compiler->chunk, OP_POP);
+      if (es->expression->node.type != NODE_IF_EXPRESSION) {
+        WriteChunk(compiler->chunk, OP_POP);
+      }
       break;
     }
     case NODE_OUT_STATEMENT: {
