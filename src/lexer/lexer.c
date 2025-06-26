@@ -138,10 +138,20 @@ Token NextToken(Lexer* l) {
       }
       break;
     case '<':
-      tok = NewToken(TOKEN_LESS, "<");
+      if (PeekChar(l) == '=') {
+        ReadChar(l);
+        tok = NewToken(TOKEN_LESS_EQUAL, "<=");
+      } else {
+        tok = NewToken(TOKEN_LESS, "<");
+      }
       break;
     case '>':
-      tok = NewToken(TOKEN_GREATER, ">");
+      if (PeekChar(l) == '=') {
+        ReadChar(l);
+        tok = NewToken(TOKEN_GREATER_EQUAL, ">=");
+      } else {
+        tok = NewToken(TOKEN_GREATER, ">");
+      }
       break;
     case '!':
       if (PeekChar(l) == '=') {

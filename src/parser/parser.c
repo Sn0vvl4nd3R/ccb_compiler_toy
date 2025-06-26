@@ -6,6 +6,7 @@ typedef enum {
   PREC_LOWEST,
   PREC_ASSIGNMENT,
   PREC_LESSGREATER,
+  PREC_COMPARISON,
   PREC_EQUALITY,
   PREC_SUM,
   PREC_PRODUCT,
@@ -17,6 +18,8 @@ Precedence precedences[] = {
   [TOKEN_ASSIGN] = PREC_ASSIGNMENT,
   [TOKEN_LESS] = PREC_LESSGREATER,
   [TOKEN_GREATER] = PREC_LESSGREATER,
+  [TOKEN_LESS_EQUAL] = PREC_COMPARISON,
+  [TOKEN_GREATER_EQUAL] = PREC_COMPARISON,
   [TOKEN_EQUAL] = PREC_EQUALITY,
   [TOKEN_NOT_EQUAL] = PREC_EQUALITY,
   [TOKEN_PLUS] = PREC_SUM,
@@ -265,6 +268,8 @@ Expression* ParseExpression(Parser* p, Precedence precedence) {
         break;
       case TOKEN_LESS:
       case TOKEN_GREATER:
+      case TOKEN_LESS_EQUAL:
+      case TOKEN_GREATER_EQUAL:
       case TOKEN_EQUAL:
       case TOKEN_NOT_EQUAL:
         infix_fn = ParseInfixExpression;

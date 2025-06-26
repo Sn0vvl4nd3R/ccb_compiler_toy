@@ -94,6 +94,18 @@ static InterpretResult Run() {
         Push(a > b);
         break;
       }
+      case OP_LESS_EQUAL: {
+        Value b = Pop();
+        Value a = Pop();
+        Push(a <= b);
+        break;
+      }
+      case OP_GREATER_EQUAL: {
+        Value b = Pop();
+        Value a = Pop();
+        Push(a >= b);
+        break;
+      }
       case OP_EQUAL: {
         Value b = Pop();
         Value a = Pop();

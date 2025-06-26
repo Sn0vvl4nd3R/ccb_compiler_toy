@@ -175,6 +175,10 @@ void CompileExpression(Compiler* compiler, Expression* expr) {
           WriteChunk(compiler->chunk, OP_LESS);
         } else if (strcmp(infix->operator, ">") == 0) {
           WriteChunk(compiler->chunk, OP_GREATER);
+        } else if (strcmp(infix->operator, "<=") == 0) {
+          WriteChunk(compiler->chunk, OP_LESS_EQUAL);
+        } else if (strcmp(infix->operator, ">=") == 0) {
+          WriteChunk(compiler->chunk, OP_GREATER_EQUAL);
         } else if (strcmp(infix->operator, "==") == 0) {
           WriteChunk(compiler->chunk, OP_EQUAL);
         } else if (strcmp(infix->operator, "!=") == 0) {
