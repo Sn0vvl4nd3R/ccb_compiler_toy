@@ -109,6 +109,9 @@ typedef struct {
   Identifier* name;
 } InStatement;
 
+void FreeProgram(Program* program);
+void FreeExpression(Expression* expr);
+void FreeStatement(Statement* stmt);
 void PrintAst(Program* p);
 
 #endif

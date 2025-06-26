@@ -4,7 +4,7 @@
 #include "lexer.h"
 
 void ReadChar(Lexer* l) {
-  if (l->read_position >= strlen(l->input)) {
+  if ((size_t)l->read_position >= l->input_len) {
     l->ch = 0;
   } else {
     l->ch = l->input[l->read_position];
@@ -16,6 +16,7 @@ void ReadChar(Lexer* l) {
 Lexer* NewLexer(const char* input) {
   Lexer* l = (Lexer*)malloc(sizeof(Lexer));
   l->input = input;
+  l->input_len = strlen(input);
   l->read_position = 0;
   ReadChar(l);
   return l;
@@ -29,7 +30,7 @@ void SkipWhiteSpace(Lexer* l) {
 
 char* ReadIdentifier(Lexer* l) {
   int position = l->position;
-  while (isalpha(l->ch)) {
+  while (isalpha(l->ch) || l->ch == '_') {
     ReadChar(l);
   }
   int length = l->position - position;
@@ -47,6 +48,7 @@ char* ReadNumber(Lexer* l) {
   int length = l->position - position;
   char* num = (char*)malloc(length + 1);
   strncpy(num, &l->input[position], length);
+  num[length] = '\0';
   return num;
 }
 
@@ -73,7 +75,7 @@ TokenType LookUpIdent(const char* ident) {
 }
 
 char PeekChar(Lexer* l) {
-  if (l->read_position >= strlen(l->input)) {
+  if ((size_t)l->read_position >= l->input_len) {
     return 0;
   } else {
     return l->input[l->read_position];

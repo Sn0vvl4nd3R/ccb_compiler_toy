@@ -2,12 +2,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include "vm.h"
+#include "../common/ast.h"
 #include "../parser/parser.h"
 #include "../codegen/codegen.h"
 
 VM vm;
 
 void Push(Value value) {
+  if (vm.stack_top - vm.stack >= STACK_MAX) {
+    fprintf(stderr, "RUNTIME ERROR: stack overflow.\n");
+    exit(1);
+  }
+
   *vm.stack_top = value;
   vm.stack_top++;
 }
@@ -159,6 +165,7 @@ InterpretResult Interpret(const char* source) {
 
   FreeChunk(chunk);
   free(chunk);
+  FreeProgram(program);
   free(l);
   free(p);
   return result;

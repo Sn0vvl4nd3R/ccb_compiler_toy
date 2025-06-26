@@ -5,6 +5,7 @@
 
 typedef struct {
   const char* input;
+  size_t input_len;
   int position;
   int read_position;
   char ch;

@@ -49,6 +49,11 @@ static void ParserNextToken(Parser* p) {
 }
 
 static int ExpectPeek(Parser* p, TokenType t) {
+  if (p->peek_token.type == TOKEN_ILLEGAL) {
+    printf("LEXER ERROR: illegal character '%s'\n", p->peek_token.literal);
+    return 0;
+  }
+
   if (p->peek_token.type == t) {
     ParserNextToken(p);
     return 1;
@@ -346,7 +351,15 @@ Expression* ParseIfExpression(Parser* p) {
 
   if (p->peek_token.type == TOKEN_ELSE) {
     ParserNextToken(p);
+    if (p->current_token.literal) {
+      free(p->current_token.literal);
+      p->current_token.literal = NULL;
+    }
+
     if (!ExpectPeek(p, TOKEN_LBRACE)) {
+      free(exp->token.literal);
+      FreeStatement((Statement*)exp->consequence);
+      free(exp);
       return NULL;
     }
     exp->alternative = ParseBlockStatement(p);
