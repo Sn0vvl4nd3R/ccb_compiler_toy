@@ -96,7 +96,12 @@ Token NextToken(Lexer* l) {
 
   switch (l->ch) {
     case '=':
-      tok = NewToken(TOKEN_ASSIGN, "=");
+      if (PeekChar(l) == '=') {
+        ReadChar(l);
+        tok = NewToken(TOKEN_EQUAL, "==");
+      } else {
+        tok = NewToken(TOKEN_ASSIGN, "=");
+      }
       break;
     case ';':
       tok = NewToken(TOKEN_SEMICOLON, ";");
@@ -137,6 +142,17 @@ Token NextToken(Lexer* l) {
       break;
     case '>':
       tok = NewToken(TOKEN_GREATER, ">");
+      break;
+    case '!':
+      if (PeekChar(l) == '=') {
+        ReadChar(l);
+        tok = NewToken(TOKEN_NOT_EQUAL, "!=");
+      } else {
+        char* illegal = malloc(2);
+        illegal[0] = '!';
+        illegal[1] = '\0';
+        tok = NewToken(TOKEN_ILLEGAL, illegal);
+      }
       break;
     case 0:
       tok = NewToken(TOKEN_EOF, "");

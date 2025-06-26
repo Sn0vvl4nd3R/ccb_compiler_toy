@@ -94,6 +94,18 @@ static InterpretResult Run() {
         Push(a > b);
         break;
       }
+      case OP_EQUAL: {
+        Value b = Pop();
+        Value a = Pop();
+        Push(a == b);
+        break;
+      }
+      case OP_NOT_EQUAL: {
+        Value b = Pop();
+        Value a = Pop();
+        Push(a != b);
+        break;
+      }
       
       case OP_JUMP: {
         uint16_t offset = (uint16_t)(vm.ip[0] << 8) | vm.ip[1];
