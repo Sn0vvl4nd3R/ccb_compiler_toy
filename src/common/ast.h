@@ -15,21 +15,16 @@ typedef enum {
   NODE_WHILE_STATEMENT,
   NODE_OUT_STATEMENT,
   NODE_IN_STATEMENT,
+
+  NODE_FUNCTION_STATEMENT,
+  NODE_RETURN_STATEMENT,
+  NODE_CALL_EXPRESSION
 } NodeType;
 
+typedef struct Node { NodeType type; } Node;
 
-typedef struct Node {
-  NodeType type;
-} Node;
-
-typedef struct Expression {
-  Node node;
-} Expression;
-
-typedef struct Statement {
-  Node node;
-} Statement;
-
+typedef struct Expression { Node node; } Expression;
+typedef struct Statement  { Node node; } Statement;
 
 typedef struct {
   Expression base;
@@ -51,7 +46,6 @@ typedef struct {
   Expression* right;
 } InfixExpression;
 
-
 typedef struct {
   Statement base;
   Token token;
@@ -65,13 +59,11 @@ typedef struct {
   Expression* expression;
 } ExpressionStatement;
 
-
 typedef struct {
   Node node;
   Statement** statements;
   int statement_count;
 } Program;
-
 
 typedef struct {
   Statement base;
@@ -88,14 +80,12 @@ typedef struct {
   BlockStatement* alternative;
 } IfExpression;
 
-
 typedef struct {
   Statement base;
   Token token;
   Expression* condition;
   BlockStatement* body;
 } WhileStatement;
-
 
 typedef struct {
   Statement base;
@@ -109,9 +99,34 @@ typedef struct {
   Identifier* name;
 } InStatement;
 
+typedef struct {
+  Statement base;
+  Token token;
+  Identifier* name;
+  Identifier** params;
+  int param_count;
+  BlockStatement* body;
+  char* return_type;
+} FunctionStatement;
+
+typedef struct {
+  Statement base;
+  Token token;
+  Expression* value;
+} ReturnStatement;
+
+typedef struct {
+  Expression base;
+  Token token;
+  Expression* function;
+  Expression** arguments;
+  int arg_count;
+} CallExpression;
+
 void FreeProgram(Program* program);
 void FreeExpression(Expression* expr);
 void FreeStatement(Statement* stmt);
 void PrintAst(Program* p);
 
 #endif
+

@@ -5,6 +5,12 @@
 
 #define STACK_MAX 256
 #define GLOBALS_MAX 256
+#define CALLSTACK_MAX 256
+
+typedef struct {
+  uint8_t* ret_ip;
+  Value* base;
+} CallFrame;
 
 typedef struct {
   Chunk* chunk;
@@ -14,6 +20,9 @@ typedef struct {
   Value* stack_top;
 
   Value globals[GLOBALS_MAX];
+
+  CallFrame frames[CALLSTACK_MAX];
+  int calltop;
 } VM;
 
 typedef enum {
@@ -27,3 +36,4 @@ void FreeVM();
 InterpretResult Interpret(const char* source);
 
 #endif
+

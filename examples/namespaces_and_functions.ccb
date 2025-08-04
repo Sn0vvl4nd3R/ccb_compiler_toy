@@ -1,0 +1,17 @@
+ns math {
+  fn one() -> int {
+    return 1;
+  }
+
+  fn zero() -> int {
+
+  }
+}
+
+fn twice() -> int {
+  return math.one() + math.one()
+}
+
+let a = twice();
+out a;
+out math.zero();

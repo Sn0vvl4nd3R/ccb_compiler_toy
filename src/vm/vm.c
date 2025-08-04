@@ -8,17 +8,16 @@
 
 VM vm;
 
-void Push(Value value) {
+static inline void Push(Value value) {
   if (vm.stack_top - vm.stack >= STACK_MAX) {
     fprintf(stderr, "RUNTIME ERROR: stack overflow.\n");
     exit(1);
   }
-
   *vm.stack_top = value;
   vm.stack_top++;
 }
 
-Value Pop() {
+static inline Value Pop() {
   vm.stack_top--;
   return *vm.stack_top;
 }
@@ -26,6 +25,7 @@ Value Pop() {
 void InitVM() {
   vm.stack_top = vm.stack;
   memset(vm.globals, 0, sizeof(vm.globals));
+  vm.calltop = 0;
 }
 
 void FreeVM() {}
@@ -39,9 +39,10 @@ static InterpretResult Run() {
         Push(vm.chunk->constants[i]);
         break;
       }
-      case OP_POP:
+      case OP_POP: {
         Pop();
         break;
+      }
       case OP_DEFINE_GLOBAL: {
         uint8_t i = *vm.ip++;
         vm.globals[i] = Pop();
@@ -55,6 +56,19 @@ static InterpretResult Run() {
       case OP_SET_GLOBAL: {
         uint8_t i = *vm.ip++;
         vm.globals[i] = vm.stack_top[-1];
+        break;
+      }
+
+      case OP_GET_LOCAL: {
+        uint8_t i = *vm.ip++;
+        CallFrame* fr = &vm.frames[vm.calltop - 1];
+        Push(fr->base[i]);
+        break;
+      }
+      case OP_SET_LOCAL: {
+        uint8_t i = *vm.ip++;
+        CallFrame* fr = &vm.frames[vm.calltop - 1];
+        fr->base[i] = vm.stack_top[-1];
         break;
       }
 
@@ -118,7 +132,7 @@ static InterpretResult Run() {
         Push(a != b);
         break;
       }
-      
+
       case OP_JUMP: {
         uint16_t offset = (uint16_t)(vm.ip[0] << 8) | vm.ip[1];
         vm.ip += offset;
@@ -139,7 +153,7 @@ static InterpretResult Run() {
         vm.ip -= offset;
         break;
       }
-      
+
       case OP_IN: {
         uint8_t i = *vm.ip++; int val;
         if (scanf("%d", &val) != 1) {
@@ -149,13 +163,50 @@ static InterpretResult Run() {
         vm.globals[i] = val;
         break;
       }
+      case OP_IN_LOCAL: {
+        uint8_t i = *vm.ip++; int val;
+        if (scanf("%d", &val) != 1) {
+          val = 0;
+          while (getchar() != '\n');
+        }
+        CallFrame* fr = &vm.frames[vm.calltop - 1];
+        fr->base[i] = val;
+        break;
+      }
       case OP_OUT: {
         printf("%d\n", Pop());
         break;
       }
+
+      case OP_CALL: {
+        uint16_t offset = (uint16_t)(vm.ip[0] << 8) | vm.ip[1];
+        vm.ip += 2;
+        uint8_t argc = *vm.ip++;
+
+        if (vm.calltop >= CALLSTACK_MAX) {
+          fprintf(stderr, "RUNTIME ERROR: call stack overflow.\n");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        CallFrame* fr = &vm.frames[vm.calltop++];
+        fr->ret_ip = vm.ip;
+        fr->base = vm.stack_top - argc;
+        vm.ip = vm.chunk->code + offset;
+        break;
+      }
+
       case OP_RETURN: {
+        if (vm.calltop > 0) {
+          Value ret = Pop();
+          CallFrame* fr = &vm.frames[vm.calltop - 1];
+          vm.stack_top = fr->base;
+          vm.calltop--;
+          Push(ret);
+          vm.ip = fr->ret_ip;
+          break;
+        }
         return INTERPRET_OK;
       }
+
       default:
         printf("Unknown opcode %d\n", instruction);
         return INTERPRET_RUNTIME_ERROR;
@@ -169,6 +220,7 @@ InterpretResult Interpret(const char* source) {
   Program* program = ParseProgram(p);
 
   if (program == NULL) {
+    free(p->ns_prefix);
     free(l);
     free(p);
     return INTERPRET_COMPILE_ERROR;
@@ -176,6 +228,7 @@ InterpretResult Interpret(const char* source) {
 
   Chunk* chunk = Compile(program);
   if (chunk == NULL) {
+    free(p->ns_prefix);
     free(l);
     free(p);
     return INTERPRET_COMPILE_ERROR;
@@ -190,7 +243,9 @@ InterpretResult Interpret(const char* source) {
   FreeChunk(chunk);
   free(chunk);
   FreeProgram(program);
+  free(p->ns_prefix);
   free(l);
   free(p);
   return result;
 }
+

@@ -11,6 +11,9 @@ typedef enum {
   OP_GET_GLOBAL,
   OP_SET_GLOBAL,
 
+  OP_GET_LOCAL,
+  OP_SET_LOCAL,
+
   OP_JUMP,
   OP_JUMP_IF_FALSE,
   OP_LOOP,
@@ -28,8 +31,11 @@ typedef enum {
   OP_NOT_EQUAL,
 
   OP_IN,
+  OP_IN_LOCAL,
   OP_OUT,
-  OP_RETURN,
+
+  OP_CALL,
+  OP_RETURN
 } OpCode;
 
 typedef int Value;
@@ -50,3 +56,4 @@ void FreeChunk(Chunk* chunk);
 int AddConstant(Chunk* chucnk, Value value);
 
 #endif
+

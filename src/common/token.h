@@ -27,12 +27,20 @@ typedef enum {
   TOKEN_LBRACE,
   TOKEN_RBRACE,
 
+  TOKEN_COMMA,
+  TOKEN_DOT,
+  TOKEN_ARROW,
+
   TOKEN_LET,
   TOKEN_IF,
   TOKEN_ELSE,
   TOKEN_WHILE,
   TOKEN_OUT,
   TOKEN_IN,
+
+  TOKEN_NS,
+  TOKEN_FN,
+  TOKEN_RETURN
 } TokenType;
 
 typedef struct {
@@ -41,3 +49,4 @@ typedef struct {
 } Token;
 
 #endif
+

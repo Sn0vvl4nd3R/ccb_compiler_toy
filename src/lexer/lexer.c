@@ -3,7 +3,7 @@
 #include <ctype.h>
 #include "lexer.h"
 
-void ReadChar(Lexer* l) {
+static void ReadChar(Lexer* l) {
   if ((size_t)l->read_position >= l->input_len) {
     l->ch = 0;
   } else {
@@ -17,42 +17,45 @@ Lexer* NewLexer(const char* input) {
   Lexer* l = (Lexer*)malloc(sizeof(Lexer));
   l->input = input;
   l->input_len = strlen(input);
+  l->position = 0;
   l->read_position = 0;
+  l->ch = 0;
   ReadChar(l);
   return l;
 }
 
-void SkipWhiteSpace(Lexer* l) {
-  while (isspace(l->ch)) {
+static void SkipWhiteSpace(Lexer* l) {
+  while (isspace((unsigned char)l->ch)) {
     ReadChar(l);
   }
 }
 
-char* ReadIdentifier(Lexer* l) {
-  int position = l->position;
-  while (isalpha(l->ch) || l->ch == '_') {
+static char* ReadIdentifier(Lexer* l) {
+  int start = l->position;
+  ReadChar(l);
+  while (isalnum((unsigned char)l->ch) || l->ch == '_') {
     ReadChar(l);
   }
-  int length = l->position - position;
-  char* ident = (char*)malloc(length + 1);
-  strncpy(ident, &l->input[position], length);
+  int length = l->position - start;
+  char* ident = (char*)malloc((size_t)length + 1);
+  memcpy(ident, &l->input[start], (size_t)length);
   ident[length] = '\0';
   return ident;
 }
 
-char* ReadNumber(Lexer* l) {
-  int position = l->position;
-  while (isdigit(l->ch)) {
+static char* ReadNumber(Lexer* l) {
+  int start = l->position;
+  while (isdigit((unsigned char)l->ch)) {
     ReadChar(l);
   }
-  int length = l->position - position;
-  char* num = (char*)malloc(length + 1);
-  strncpy(num, &l->input[position], length);
+  int length = l->position - start;
+  char* num = (char*)malloc((size_t)length + 1);
+  memcpy(num, &l->input[start], (size_t)length);
   num[length] = '\0';
   return num;
 }
 
-TokenType LookUpIdent(const char* ident) {
+static TokenType LookUpIdent(const char* ident) {
   if (strcmp(ident, "let") == 0) {
     return TOKEN_LET;
   }
@@ -71,10 +74,19 @@ TokenType LookUpIdent(const char* ident) {
   if (strcmp(ident, "in") == 0) {
     return TOKEN_IN;
   }
+  if (strcmp(ident, "ns") == 0) {
+    return TOKEN_NS;
+  }
+  if (strcmp(ident, "fn") == 0) {
+    return TOKEN_FN;
+  }
+  if (strcmp(ident, "return") == 0) {
+    return TOKEN_RETURN;
+  }
   return TOKEN_IDENT;
 }
 
-char PeekChar(Lexer* l) {
+static char PeekChar(Lexer* l) {
   if ((size_t)l->read_position >= l->input_len) {
     return 0;
   } else {
@@ -82,7 +94,7 @@ char PeekChar(Lexer* l) {
   }
 }
 
-Token NewToken(TokenType type, char* literal) {
+static Token NewToken(TokenType type, char* literal) {
   Token tok;
   tok.type = type;
   tok.literal = literal;
@@ -103,30 +115,46 @@ Token NextToken(Lexer* l) {
         tok = NewToken(TOKEN_ASSIGN, "=");
       }
       break;
+
     case ';':
       tok = NewToken(TOKEN_SEMICOLON, ";");
       break;
-    case '(':
+    case ',':
+      tok = NewToken(TOKEN_COMMA, ",");
+      break;
+    case '.':
+      tok = NewToken(TOKEN_DOT, ".");
+      break;
+
+    case '(' :
       tok = NewToken(TOKEN_LPAREN, "(");
       break;
-    case ')':
+    case ')' :
       tok = NewToken(TOKEN_RPAREN, ")");
       break;
-    case '{':
+    case '{' :
       tok = NewToken(TOKEN_LBRACE, "{");
       break;
-    case '}':
+    case '}' :
       tok = NewToken(TOKEN_RBRACE, "}");
       break;
+
     case '+':
       tok = NewToken(TOKEN_PLUS, "+");
-      break;
-    case '-':
-      tok = NewToken(TOKEN_MINUS, "-");
       break;
     case '*':
       tok = NewToken(TOKEN_ASTERISK, "*");
       break;
+
+    case '-':
+      if (PeekChar(l) == '>') {
+        ReadChar(l);
+        tok = NewToken(TOKEN_ARROW, "->");
+      } else {
+        tok = NewToken(TOKEN_MINUS, "-");
+      }
+      break;
+
     case '/':
       if (PeekChar(l) == '/') {
         while (l->ch != '\n' && l->ch != 0) {
@@ -137,6 +165,7 @@ Token NextToken(Lexer* l) {
         tok = NewToken(TOKEN_SLASH, "/");
       }
       break;
+
     case '<':
       if (PeekChar(l) == '=') {
         ReadChar(l);
@@ -145,6 +174,7 @@ Token NextToken(Lexer* l) {
         tok = NewToken(TOKEN_LESS, "<");
       }
       break;
+
     case '>':
       if (PeekChar(l) == '=') {
         ReadChar(l);
@@ -153,28 +183,31 @@ Token NextToken(Lexer* l) {
         tok = NewToken(TOKEN_GREATER, ">");
       }
       break;
+
     case '!':
       if (PeekChar(l) == '=') {
         ReadChar(l);
         tok = NewToken(TOKEN_NOT_EQUAL, "!=");
       } else {
-        char* illegal = malloc(2);
+        char* illegal = (char*)malloc(2);
         illegal[0] = '!';
         illegal[1] = '\0';
         tok = NewToken(TOKEN_ILLEGAL, illegal);
       }
       break;
+
     case 0:
       tok = NewToken(TOKEN_EOF, "");
       break;
+
     default:
-      if (isalpha(l->ch)) {
+      if (isalpha((unsigned char)l->ch) || l->ch == '_') {
         char* literal = ReadIdentifier(l);
         TokenType type = LookUpIdent(literal);
         tok.type = type;
         tok.literal = literal;
         return tok;
-      } else if (isdigit(l->ch)) {
+      } else if (isdigit((unsigned char)l->ch)) {
         char* literal = ReadNumber(l);
         tok.type = TOKEN_INT;
         tok.literal = literal;
@@ -187,6 +220,8 @@ Token NextToken(Lexer* l) {
       }
       break;
   }
+
   ReadChar(l);
   return tok;
 }
+

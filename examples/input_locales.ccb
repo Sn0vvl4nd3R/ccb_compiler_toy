@@ -1,0 +1,7 @@
+fn read_and_twice() -> int {
+  let x = 0;
+  in x;
+  return x * 2;
+}
+
+out read_and_twice();

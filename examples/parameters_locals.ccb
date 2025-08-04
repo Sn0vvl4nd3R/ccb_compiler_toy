@@ -1,0 +1,6 @@
+fn add(a, b) -> int {
+  let s = a + b;
+  return s;
+}
+
+out add(2, 3);

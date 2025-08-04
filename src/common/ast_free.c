@@ -41,6 +41,16 @@ void FreeExpression(Expression* expr) {
       free(ife);
       break;
     }
+    case NODE_CALL_EXPRESSION: {
+      CallExpression* call = (CallExpression*)expr;
+      FreeExpression(call->function);
+      for (int i = 0; i < call->arg_count; i++) {
+        FreeExpression(call->arguments[i]);
+      }
+      free(call->arguments);
+      free(call);
+      break;
+    }
     default:
       break;
   }
@@ -97,6 +107,28 @@ void FreeStatement(Statement* stmt) {
       free(wh);
       break;
     }
+    case NODE_FUNCTION_STATEMENT: {
+      FunctionStatement* fn = (FunctionStatement*)stmt;
+      FreeExpression((Expression*)fn->name);
+      for (int i = 0; i < fn->param_count; i++) {
+        FreeExpression((Expression*)fn->params[i]);
+      }
+      free(fn->params);
+      FreeStatement((Statement*)fn->body);
+      free(fn->return_type);
+      free(fn->token.literal);
+      free(fn);
+      break;
+    }
+    case NODE_RETURN_STATEMENT: {
+      ReturnStatement* rs = (ReturnStatement*)stmt;
+      if (rs->value) {
+        FreeExpression(rs->value);
+      }
+      free(rs->token.literal);
+      free(rs);
+      break;
+    }
     default:
       break;
   }
@@ -106,11 +138,10 @@ void FreeProgram(Program* program) {
   if (!program) {
     return;
   }
-
   for (int i = 0; i < program->statement_count; i++) {
     FreeStatement(program->statements[i]);
   }
-
   free(program->statements);
   free(program);
 }
+

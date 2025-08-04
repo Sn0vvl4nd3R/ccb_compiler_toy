@@ -1,0 +1,8 @@
+ns math {
+  fn mul2(x) -> int { return x * 2; }
+  fn sum3(a, b, c) -> int { let t = a + b; return t + c; }
+}
+
+out math.mul2(10);          // 20
+out math.sum3(1, 2, 3);     // 6
+
